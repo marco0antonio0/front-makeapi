@@ -5,7 +5,19 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 export default function HomePage() {
-  const { loading } = useAuth()
+  const { isAuthenticated, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading) {
+      if (isAuthenticated) {
+        router.push("/home")
+      } else {
+        router.push("/login")
+      }
+    }
+  }, [isAuthenticated, loading, router])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
