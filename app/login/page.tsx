@@ -89,7 +89,7 @@ export default function LoginPage() {
                 <TabsTrigger value="login" className="font-medium text-base h-10">
                   Entrar
                 </TabsTrigger>
-                <TabsTrigger value="register" className="font-medium text-base h-10">
+                <TabsTrigger value="register" className="font-medium text-base h-10" disabled={true}>
                   Criar Conta
                 </TabsTrigger>
               </TabsList>
@@ -130,7 +130,7 @@ export default function LoginPage() {
                   </Button>
                 </form>
 
-                <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                {/* <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                   <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-3">Contas de demonstração:</p>
                   <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
                     <div className="flex justify-between items-center">
@@ -146,7 +146,7 @@ export default function LoginPage() {
                       <span className="font-mono">dev@makeapi.com / dev123</span>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </TabsContent>
 
               <TabsContent value="register" className="space-y-6">
