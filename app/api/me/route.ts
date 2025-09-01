@@ -1,3 +1,4 @@
+import { API_CONFIG } from "@/config/api.config"
 import { type NextRequest, NextResponse } from "next/server"
 
 interface MeResponse {
@@ -11,8 +12,7 @@ interface MeResponse {
 }
 
 const API_BASE_URL =
-  process.env.MAKEAPI_BASE_URL ||
-  "https://makeapi.netlify.app"  
+  API_CONFIG.BASE_URL 
 
 function getTokenFromCookie(request: NextRequest): string | null {
   const cookieHeader = request.headers.get("cookie")

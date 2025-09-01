@@ -34,10 +34,12 @@ export default function EndpointItemsPage() {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="text-slate-600 dark:text-slate-400 font-medium">Carregando endpoint...</p>
+          <div className="flex items-center justify-center min-h-[400px] w-full">
+            <div className="text-center space-y-4 animate-fade-in">
+              <div className="relative mx-auto w-12 h-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary"></div>
+              </div>
+              <p className="text-muted-foreground animate-pulse">Carregando endpoint...</p>
             </div>
           </div>
         </DashboardLayout>
@@ -49,15 +51,10 @@ export default function EndpointItemsPage() {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center space-y-6 max-w-md">
-              <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-4 w-20 h-20 mx-auto flex items-center justify-center">
-                <svg
-                  className="h-10 w-10 text-red-600 dark:text-red-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
+          <div className="flex items-center justify-center min-h-[400px] w-full">
+            <div className="text-center space-y-6 max-w-md animate-fade-in">
+              <div className="bg-destructive/10 rounded-full p-6 w-20 h-20 mx-auto flex items-center justify-center">
+                <svg className="h-10 w-10 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -67,8 +64,8 @@ export default function EndpointItemsPage() {
                 </svg>
               </div>
               <div className="space-y-2">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Endpoint não encontrado</h1>
-                <p className="text-slate-600 dark:text-slate-400">O endpoint solicitado não existe ou foi removido.</p>
+                <h1 className="text-2xl font-bold text-foreground">Endpoint não encontrado</h1>
+                <p className="text-muted-foreground">O endpoint solicitado não existe ou foi removido.</p>
               </div>
             </div>
           </div>
@@ -80,22 +77,22 @@ export default function EndpointItemsPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="max-w-7xl mx-auto space-y-8">
+        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
           <div className="space-y-2">
-            <div className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <span>Endpoints</span>
               <span>/</span>
-              <span className="font-medium text-blue-600 dark:text-blue-400">{endpoint.title}</span>
+              <span className="font-medium text-primary">{endpoint.title}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{endpoint.title}</h1>
-                <p className="text-lg text-slate-600 dark:text-slate-400">Gerencie os itens deste endpoint</p>
+                <h1 className="text-3xl font-bold text-foreground">{endpoint.title}</h1>
+                <p className="text-lg text-muted-foreground">Gerencie os itens deste endpoint</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
             <ItemsList endpoint={endpoint} />
           </div>
         </div>

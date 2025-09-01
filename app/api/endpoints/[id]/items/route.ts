@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { ApiResponse, EndpointItem } from "@/types/api"
+import { API_CONFIG } from "@/config/api.config"
 
 const API_BASE =
-  process.env.MAKEAPI_BASE_URL /* server-only */ ||
-  "https://api-makeapi.netlify.app"
+  API_CONFIG.BASE_URL
 
 function pickArray<T = any>(raw: any): T[] {
   if (raw?.data && Array.isArray(raw.data)) return raw.data as T[]

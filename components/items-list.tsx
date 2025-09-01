@@ -16,9 +16,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Plus, Edit, Trash2, ArrowLeft, Database } from "lucide-react"
+import { Plus, Edit, Trash2, ArrowLeft, Database, ExternalLink, Copy, LinkIcon } from "lucide-react"
 import Link from "next/link"
 import type { Endpoint, EndpointItem } from "@/types/api"
+import { toast } from "sonner"
+import { API_CONFIG } from "@/config/api.config"
 
 interface ItemsListProps {
   endpoint: Endpoint
@@ -66,6 +68,16 @@ export function ItemsList({ endpoint }: ItemsListProps) {
     router.push(`/home/${params.id}/create`)
   }
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success("URL copiada para a área de transferência!")
+  }
+
+  const getItemApiUrl = (itemId: string) => {
+    const baseUrl = API_CONFIG.BASE_URL 
+    return `${baseUrl}/api/itens/${itemId}`
+  }
+
   const renderFieldValue = (value: any, field: any) => {
     if (field.tipo === "image" && value) {
       return <img src={value || "/placeholder.svg"} alt="Item image" className="w-16 h-16 object-cover rounded-md" />
@@ -80,8 +92,13 @@ export function ItemsList({ endpoint }: ItemsListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-[400px] w-full">
+        <div className="text-center space-y-4 animate-fade-in">
+          <div className="relative mx-auto w-12 h-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-muted border-t-primary"></div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Carregando itens...</p>
+        </div>
       </div>
     )
   }
@@ -125,6 +142,37 @@ export function ItemsList({ endpoint }: ItemsListProps) {
                 <CardDescription>Atualizado em {new Date(item.updatedAt).toLocaleDateString("pt-BR")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* API demo link section for individual item */}
+                <div className="bg-muted/30 p-3 rounded-lg border border-primary/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-1">
+                      <LinkIcon className="h-3 w-3" />
+                      URL deste Item
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => copyToClipboard(getItemApiUrl(item.id))}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate text-primary">
+                      GET /api/endpoint/{params.id}?id={item.id}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs bg-transparent"
+                      onClick={() => window.open(getItemApiUrl(item.id), "_blank")}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Fields Preview */}
                 <div className="space-y-3">
                   {endpoint.campos.slice(0, 3).map((campo) => (
@@ -140,7 +188,7 @@ export function ItemsList({ endpoint }: ItemsListProps) {
 
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-2">
-                  <Button variant="outline" size="sm" asChild className="h-12">
+                  <Button variant="outline" size="sm" asChild className="h-12 bg-transparent">
                     <Link href={`/home/${params.id}/${item.id}`}>
                       <Edit className="mr-2 h-4 w-4" />
                       Editar
@@ -153,7 +201,6 @@ export function ItemsList({ endpoint }: ItemsListProps) {
                         variant="outline"
                         size="sm"
                         className="text-destructive hover:text-destructive bg-transparent h-12 w-12"
-                        onClick={() => console.log("[v0] Delete button clicked for item:", item.id)}  
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

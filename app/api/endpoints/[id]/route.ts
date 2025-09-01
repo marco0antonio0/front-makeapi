@@ -1,11 +1,10 @@
 // app/api/endpoints/[id]/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import type { ApiResponse, Endpoint, EndpointItem } from "@/types/api"
+import { API_CONFIG } from "@/config/api.config"
 
 const API_BASE =
-  process.env.MAKEAPI_BASE_URL ||
-  "https://api-makeapi.netlify.app"
-
+  API_CONFIG.BASE_URL
 // Se não tiver esses tipos no seu projeto, mantemos locais:
 type Item = EndpointItem | {
   id: string

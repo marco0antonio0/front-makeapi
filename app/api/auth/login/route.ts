@@ -1,3 +1,4 @@
+import { API_CONFIG } from "@/config/api.config";
 import { type NextRequest, NextResponse } from "next/server"
 
 type LoginRequest = { email: string; password: string }
@@ -5,8 +6,7 @@ type ApiSuccess = { access_token: string; status: number; id: string }
 type ApiError = { message?: string; status?: number } & Record<string, any>
 
 const API_BASE_URL =
-  process.env.MAKEAPI_BASE_URL   ||
-  "https://makeapi.netlify.app" 
+  API_CONFIG.BASE_URL 
 
 export async function POST(request: NextRequest) {
   try {
