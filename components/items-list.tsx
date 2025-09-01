@@ -160,7 +160,7 @@ export function ItemsList({ endpoint }: ItemsListProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate text-primary">
-                      GET /api/endpoint/{params.id}?id={item.id}
+                      GET /api/itens/{params.id}?id={item.id}
                     </code>
                     <Button
                       variant="outline"

@@ -22,13 +22,11 @@ interface ItemFormProps {
 export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
   const params = useParams()
   const router = useRouter()
-  const log = (...a: any[]) => console.log("[ItemForm]", ...a)
 
   // 1) extrai itemData: se item.data existir usa, senão usa o próprio item
   const itemData = useMemo<Record<string, any>>(() => {
     const candidate = item && typeof item === "object" && "data" in item ? (item as any).data : item
     const obj = candidate && typeof candidate === "object" ? candidate : {}
-    log("itemData (normalized):", obj)
     return obj as Record<string, any>
   }, [item])
 
@@ -54,15 +52,10 @@ export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
   // 2) monta estado inicial com base no schema do endpoint + itemData
   const initialFormData = useMemo(() => {
     const base: Record<string, any> = {}
-    console.groupCollapsed("[ItemForm] build initialFormData")
-    log("endpoint.campos:", endpoint?.campos)
-    log("itemData keys:", Object.keys(itemData ?? {}))
     for (const c of endpoint.campos) {
       const v = valueForTitle(itemData, c.title)
       base[c.title] = v ?? emptyValueFor(c.tipo)
-      log(`campo "${c.title}" ->`, v ?? "(vazio)")
     }
-    console.groupEnd()
     return base
   }, [endpoint.campos, itemData])
 

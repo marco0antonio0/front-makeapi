@@ -55,14 +55,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Link>
 
             <div className="hidden md:flex items-center flex-1 max-w-md mx-8">
-              <div className="relative w-full">
+          {/* <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Buscar endpoints..."
                   className="w-full pl-10 pr-4 py-2 bg-muted/50 border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200"
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Mobile menu button */}
@@ -147,15 +147,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       </div>
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer hover:bg-muted/50 p-3">
-                    <User className="mr-3 h-4 w-4" />
-                    <span>Perfil</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer hover:bg-muted/50 p-3">
-                    <Settings className="mr-3 h-4 w-4" />
-                    <span>Configurações</span>
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}

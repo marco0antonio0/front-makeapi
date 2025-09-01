@@ -164,7 +164,7 @@ export function EndpointsList() {
                       <p className="text-sm">
                         <strong>URL Base:</strong>{" "}
                         <code className="bg-background px-2 py-1 rounded text-primary">
-                          GET /api/endpointsss/[endpoint-id]
+                          GET /api/endpoint/[endpoint-id]
                         </code>
                       </p>
                       <p className="text-sm text-muted-foreground">Substitua [endpoint-id] pelo ID do seu endpoint</p>
