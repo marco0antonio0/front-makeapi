@@ -1,99 +1,182 @@
+// app/api/endpoints/[id]/route.ts
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/mock-data"
-import type { ApiResponse, Endpoint } from "@/types/api"
+import type { ApiResponse, Endpoint, EndpointItem } from "@/types/api"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-): Promise<NextResponse<ApiResponse<Endpoint>>> {
+const API_BASE =
+  process.env.MAKEAPI_BASE_URL ||
+  "https://api-makeapi.netlify.app"
+
+// Se não tiver esses tipos no seu projeto, mantemos locais:
+type Item = EndpointItem | {
+  id: string
+  endpointId: string
+  data: Record<string, any>
+  createdAt: string
+  updatedAt: string
+}
+type EndpointWithItems = Endpoint & { items: Item[] }
+
+function pickObject<T = any>(raw: any): T {
+  // aceita { data: {...} } ou objeto direto
+  if (raw?.data && (typeof raw.data === "object" || Array.isArray(raw.data))) return raw.data as T
+  return raw as T
+}
+function pickArray<T = any>(raw: any): T[] {
+  // aceita { data: [...] } ou array direto
+  if (raw?.data && Array.isArray(raw.data)) return raw.data as T[]
+  if (Array.isArray(raw)) return raw as T[]
+  return []
+}
+async function safeJson(res: Response) {
   try {
-    const endpoint = db.endpoints.findById(params.id)
-    if (!endpoint) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Endpoint not found",
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+type P = { id: string }
+
+// GET /api/endpoints/[id]
+export async function GET(
+  _request: NextRequest,
+  ctx: { params: Promise<P> }, // 👈 params agora é Promise
+): Promise<NextResponse<ApiResponse<EndpointWithItems>>> {
+  try {
+    const { id } = await ctx.params // 👈 aguarda antes de usar
+
+    // 1) Busca o endpoint
+    const upstream = await fetch(`${API_BASE}/api/endpoint/${id}`, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    })
+    const raw = await safeJson(upstream)
+    if (!upstream.ok) {
+      const message = raw?.message || "Falha ao buscar endpoint na API"
+      const status = upstream.status || 502
+      return NextResponse.json({ success: false, error: message }, { status })
+    }
+
+    const base = pickObject<Endpoint & Partial<{ items: Item[] }>>(raw)
+
+    // 2) Garante items sempre como array
+    let items: Item[] = Array.isArray((base as any).items) ? (base as any).items! : []
+
+    // 3) Se não veio items embutido, busca por endpointId
+    if (items.length === 0) {
+      const itRes = await fetch(`${API_BASE}/api/itens/query`, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
         },
-        { status: 404 },
-      )
+        body: JSON.stringify({
+          filters: [{ field: "endpointId", op: "==", value: id }],
+          limit: 200,
+        }),
+        cache: "no-store",
+      })
+      const itRaw = await safeJson(itRes)
+      if (itRes.ok) items = pickArray<Item>(itRaw)
     }
 
     return NextResponse.json({
       success: true,
-      data: endpoint,
+      data: { ...(base as Endpoint), items },
     })
   } catch (error) {
-    console.error("[v0] API: Error in GET endpoint:", error)
+    console.error("[endpoint/:id GET] error:", error)
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch endpoint",
-      },
+      { success: false, error: "Erro interno ao buscar endpoint" },
       { status: 500 },
     )
   }
 }
 
+// PUT /api/endpoints/[id]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  ctx: { params: Promise<P> },
 ): Promise<NextResponse<ApiResponse<Endpoint>>> {
   try {
-    const body = await request.json()
-    const updatedEndpoint = db.endpoints.update(params.id, body)
-
-    if (!updatedEndpoint) {
+    const { id } = await ctx.params
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Endpoint not found",
-        },
-        { status: 404 },
+        { success: false, error: "Não autenticado (cookie auth-token ausente)" },
+        { status: 401 },
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      data: updatedEndpoint,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to update endpoint",
+    const body = await request.json().catch(() => ({}))
+    const upstream = await fetch(`${API_BASE}/api/endpoint/${id}`, {
+      method: "PUT", // troque para "PATCH" se a sua API usar PATCH
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    })
+    const raw = await safeJson(upstream)
+    if (!upstream.ok) {
+      const message = raw?.message || "Falha ao atualizar endpoint na API"
+      return NextResponse.json(
+        { success: false, error: message },
+        { status: upstream.status || 502 },
+      )
+    }
+
+    const updated = pickObject<Endpoint>(raw)
+    return NextResponse.json({ success: true, data: updated })
+  } catch (error) {
+    console.error("[endpoint/:id PUT] error:", error)
+    return NextResponse.json(
+      { success: false, error: "Erro interno ao atualizar endpoint" },
       { status: 500 },
     )
   }
 }
 
+// DELETE /api/endpoints/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  ctx: { params: Promise<P> },
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
-    const deleted = db.endpoints.delete(params.id)
-
-    if (!deleted) {
+    const { id } = await ctx.params
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Endpoint not found",
-        },
-        { status: 404 },
+        { success: false, error: "Não autenticado (cookie auth-token ausente)" },
+        { status: 401 },
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      data: null,
-    })
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to delete endpoint",
+    const upstream = await fetch(`${API_BASE}/api/endpoint/${id}`, {
+      method: "DELETE",
+      headers: {
+        accept: "*/*",
+        Authorization: `Bearer ${token}`,
       },
+      cache: "no-store",
+    })
+    const raw = await safeJson(upstream)
+    if (!upstream.ok) {
+      const message = raw?.message || "Falha ao excluir endpoint na API"
+      return NextResponse.json(
+        { success: false, error: message },
+        { status: upstream.status || 502 },
+      )
+    }
+
+    return NextResponse.json({ success: true, data: null })
+  } catch (error) {
+    console.error("[endpoint/:id DELETE] error:", error)
+    return NextResponse.json(
+      { success: false, error: "Erro interno ao excluir endpoint" },
       { status: 500 },
     )
   }

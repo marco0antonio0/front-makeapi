@@ -7,6 +7,13 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { ItemForm } from "@/components/item-form"
 import type { Endpoint, EndpointItem } from "@/types/api"
 
+function pickObject<T = any>(raw: any): T | null {
+  if (!raw) return null
+  if (raw?.data && typeof raw.data === "object") return raw.data as T
+  if (typeof raw === "object") return raw as T
+  return null
+}
+
 export default function EditItemPage() {
   const params = useParams()
   const [endpoint, setEndpoint] = useState<Endpoint | null>(null)
@@ -14,31 +21,48 @@ export default function EditItemPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // evita rodar sem ids
+    if (!params?.id || !params?.itemId) return
     fetchData()
-  }, [params.id, params.itemId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.id, params?.itemId])
 
   const fetchData = async () => {
-    try {
-      const [endpointResponse, itemResponse] = await Promise.all([
-        fetch(`/api/endpoints/${params.id}`),
-        fetch(`/api/endpoints/${params.id}/items/${params.itemId}`),
-      ])
+  try {
+    const epRes = await fetch(`/api/endpoints/${params.id}`)
+    const itRes = await fetch(`/api/endpoints/${params.id}/items/${params.itemId}`)
+    console.log("[EditItemPage] epRes:", epRes)
+    console.log("[EditItemPage] itRes:", itRes)
 
-      const [endpointResult, itemResult] = await Promise.all([endpointResponse.json(), itemResponse.json()])
+    const epJson = await epRes.json()
+    const itJson = await itRes.json()
+    console.log("[EditItemPage] epJson:", epJson)
+    console.log("[EditItemPage] itJson:", itJson)
 
-      if (endpointResult.success) {
-        setEndpoint(endpointResult.data)
-      }
+    if (epJson?.success) setEndpoint(epJson.data as Endpoint)
 
-      if (itemResult.success) {
-        setItem(itemResult.data)
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error)
-    } finally {
-      setLoading(false)
+    if (itJson?.success) {
+      const raw = itJson.data
+      // Se já vier como { data: {...} }, mantém; se vier só {...}, embrulha num pseudo-Item
+      const normalized =
+        raw && typeof raw === "object" && "data" in raw
+          ? raw
+          : {
+              id: String(params.itemId),
+              endpointId: String(params.id),
+              data: raw ?? {},
+              createdAt: "",
+              updatedAt: "",
+            }
+      setItem(normalized)
     }
+  } catch (error) {
+    console.error("Error fetching data:", error)
+  } finally {
+    setLoading(false)
   }
+}
+
 
   if (loading) {
     return (
@@ -62,18 +86,9 @@ export default function EditItemPage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center space-y-6 max-w-md">
               <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-4 w-20 h-20 mx-auto flex items-center justify-center">
-                <svg
-                  className="h-10 w-10 text-red-600 dark:text-red-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
+                <svg className="h-10 w-10 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                 </svg>
               </div>
               <div className="space-y-2">
@@ -93,16 +108,13 @@ export default function EditItemPage() {
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="space-y-2">
             <div className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
-              <span>Endpoint</span>
-              <span>/</span>
+              <span>Endpoint</span><span>/</span>
               <span className="font-medium text-blue-600 dark:text-blue-400">{endpoint.title}</span>
-              <span>/</span>
-              <span>Editar Item</span>
+              <span>/</span><span>Editar Item</span>
             </div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Editar Item</h1>
             <p className="text-lg text-slate-600 dark:text-slate-400">
-              Edite o item do endpoint{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">"{endpoint.title}"</span>
+              Edite o item do endpoint <span className="font-semibold text-slate-900 dark:text-white">"{endpoint.title}"</span>
             </p>
           </div>
 

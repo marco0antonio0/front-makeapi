@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,24 +15,94 @@ import type { Endpoint, EndpointItem } from "@/types/api"
 
 interface ItemFormProps {
   endpoint: Endpoint
-  item?: EndpointItem
+  item?: EndpointItem | Record<string, any> // <- aceita ambos
   mode: "create" | "edit"
 }
 
 export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
-  const [formData, setFormData] = useState<Record<string, any>>(
-    item?.data || endpoint.campos.reduce((acc, campo) => ({ ...acc, [campo.title]: "" }), {}),
-  )
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const params = useParams()
   const router = useRouter()
+  const log = (...a: any[]) => console.log("[ItemForm]", ...a)
+
+  // 1) extrai itemData: se item.data existir usa, senão usa o próprio item
+  const itemData = useMemo<Record<string, any>>(() => {
+    const candidate = item && typeof item === "object" && "data" in item ? (item as any).data : item
+    const obj = candidate && typeof candidate === "object" ? candidate : {}
+    log("itemData (normalized):", obj)
+    return obj as Record<string, any>
+  }, [item])
+
+  // normalizador pra casar nomes de campos
+  const norm = (s: string) =>
+    String(s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim()
+
+  const valueForTitle = (data: Record<string, any> | undefined, title: string) => {
+    if (!data) return undefined
+    if (title in data) return data[title]
+    const want = norm(title)
+    for (const k of Object.keys(data)) if (norm(k) === want) return data[k]
+    return undefined
+  }
+
+  const emptyValueFor = (tipo: string) => (tipo === "number" ? "" : "")
+
+  // 2) monta estado inicial com base no schema do endpoint + itemData
+  const initialFormData = useMemo(() => {
+    const base: Record<string, any> = {}
+    console.groupCollapsed("[ItemForm] build initialFormData")
+    log("endpoint.campos:", endpoint?.campos)
+    log("itemData keys:", Object.keys(itemData ?? {}))
+    for (const c of endpoint.campos) {
+      const v = valueForTitle(itemData, c.title)
+      base[c.title] = v ?? emptyValueFor(c.tipo)
+      log(`campo "${c.title}" ->`, v ?? "(vazio)")
+    }
+    console.groupEnd()
+    return base
+  }, [endpoint.campos, itemData])
+
+  const [formData, setFormData] = useState<Record<string, any>>(() => initialFormData)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const hydratedOnce = useRef(false)
+
+  useEffect(() => {
+    setFormData(initialFormData)
+  }, [initialFormData])
+
+  // fallback extra (opcional): se itemData vier vazio em modo edit, tenta refetch local
+  useEffect(() => {
+    if (mode !== "edit" || Object.keys(itemData).length > 0 || hydratedOnce.current) return
+    const endpointId = String(params.id)
+    const itemId = String((params as any).itemId || (item as any)?.id || "")
+    if (!itemId) return
+
+    ;(async () => {
+      try {
+        hydratedOnce.current = true
+        const res = await fetch(`/api/endpoints/${endpointId}/items/${itemId}`, { cache: "no-store" })
+        const j = await res.json().catch(() => null)
+        if (res.ok && j?.success && j?.data) {
+          const remote = j.data
+          const remoteData = remote && typeof remote === "object" && "data" in remote ? remote.data : remote
+          const fresh: Record<string, any> = {}
+          for (const c of endpoint.campos) fresh[c.title] = valueForTitle(remoteData, c.title) ?? emptyValueFor(c.tipo)
+          setFormData(fresh)
+        }
+      } catch (e) {
+        // noop
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, endpoint.campos, params, itemData, item])
 
   const handleInputChange = (fieldName: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [fieldName]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [fieldName]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,28 +111,23 @@ export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
     setLoading(true)
 
     try {
+      const endpointId = String(params.id)
+      const itemId = (params as any).itemId ? String((params as any).itemId) : undefined
       const url =
-        mode === "create" ? `/api/endpoints/${params.id}/items` : `/api/endpoints/${params.id}/items/${params.itemId}`
-
+        mode === "create"
+          ? `/api/endpoints/${endpointId}/items`
+          : `/api/endpoints/${endpointId}/items/${itemId}`
       const method = mode === "create" ? "POST" : "PUT"
 
       const response = await fetch(url, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          data: formData,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: formData }),
       })
+      const result = await response.json().catch(() => null)
 
-      const result = await response.json()
-
-      if (result.success) {
-        router.push(`/home/${params.id}`)
-      } else {
-        setError(result.error || `Erro ao ${mode === "create" ? "criar" : "atualizar"} item`)
-      }
+      if (result?.success) router.push(`/home/${endpointId}`)
+      else setError(result?.error || `Erro ao ${mode === "create" ? "criar" : "atualizar"} item`)
     } catch (err) {
       setError(`Erro ao ${mode === "create" ? "criar" : "atualizar"} item`)
     } finally {
@@ -72,63 +136,61 @@ export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
   }
 
   const renderField = (campo: any) => {
-    const value = formData[campo.title] || ""
+  const value = formData[campo.title] ?? emptyValueFor(campo.tipo)
 
-    const getFieldIcon = () => {
-      switch (campo.tipo) {
-        case "string":
-          return <FileText className="h-4 w-4" />
-        case "number":
-          return <Hash className="h-4 w-4" />
-        case "image":
-          return <ImageIcon className="h-4 w-4" />
-        default:
-          return <FileText className="h-4 w-4" />
-      }
-    }
-
-    if (campo.tipo === "string") {
+  switch (campo.tipo) {
+    case "string":
       if (campo.mult) {
         return (
           <Textarea
+            id={campo.title}
             placeholder={`Digite ${campo.title}...`}
-            value={value}
+            value={String(value ?? "")}
             onChange={(e) => handleInputChange(campo.title, e.target.value)}
             rows={4}
             className="min-h-[100px] resize-y"
           />
         )
-      } else {
-        return (
-          <Input
-            type="text"
-            placeholder={`Digite ${campo.title}...`}
-            value={value}
-            onChange={(e) => handleInputChange(campo.title, e.target.value)}
-            className="h-11"
-          />
-        )
       }
-    }
-
-    if (campo.tipo === "number") {
       return (
         <Input
-          type="number"
+          id={campo.title}
+          type="text"
           placeholder={`Digite ${campo.title}...`}
-          value={value}
-          onChange={(e) => handleInputChange(campo.title, Number.parseFloat(e.target.value) || 0)}
+          value={String(value ?? "")}
+          onChange={(e) => handleInputChange(campo.title, e.target.value)}
           className="h-11"
         />
       )
-    }
 
-    if (campo.tipo === "image") {
-      return <ImageUpload value={value} onChange={(base64) => handleInputChange(campo.title, base64)} />
-    }
+    case "number":
+      return (
+        <Input
+          id={campo.title}
+          type="number"
+          placeholder={`Digite ${campo.title}...`}
+          value={String(value ?? "")}
+          onChange={(e) => {
+            const v = e.target.value
+            handleInputChange(campo.title, v === "" ? "" : Number.parseFloat(v))
+          }}
+          className="h-11"
+        />
+      )
 
-    return null
+    case "image":
+      return (
+        <ImageUpload
+          value={value}
+          onChange={(base64) => handleInputChange(campo.title, base64)}
+        />
+      )
+
+    default:
+      return null
   }
+}
+
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -179,7 +241,6 @@ export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
           </CardContent>
         </Card>
 
-        {/* Error Message */}
         {error && (
           <Alert variant="destructive" className="shadow-sm">
             <AlertDescription>{error}</AlertDescription>
@@ -187,11 +248,11 @@ export function ItemForm({ endpoint, item, mode }: ItemFormProps) {
         )}
 
         <div className="flex items-center justify-between pt-6 border-t border-border">
-          <Button type="button" variant="outline" onClick={() => router.push(`/home/${params.id}`)} className="px-6">
+          <Button type="button" variant="outline" onClick={() => router.push(`/home/${String(params.id)}`)} className="px-6 h-12">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>
-          <Button type="submit" disabled={loading} className="px-6 shadow-sm">
+          <Button type="submit" disabled={loading} className="px-6 shadow-sm h-12">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
